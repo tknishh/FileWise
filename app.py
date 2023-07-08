@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os
 import streamlit as st
+from PyPDF2 import PdfReader
 import textract
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
@@ -20,7 +21,10 @@ if file is not None:
     content = file.read()  # Read the file content once
 
     if file.type == 'application/pdf':
-        text = textract.process(content)
+        pdf_reader = PdfReader(file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
     elif file.type == 'text/plain':
         text = content.decode('utf-8')
     elif file.type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':

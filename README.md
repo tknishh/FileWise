@@ -17,6 +17,10 @@ The RAG module consists of two main phases: retrieval and generation. The retrie
 - Utilize a question-answering model to generate answers using load_qa_chain from langchain library.
 - Display the generated answer to the user using Streamlit.
 
+## Working
+
+![Diagram](./diagrams/FileWise.png)
+
 ## Installation
 
 1. Clone the repository:

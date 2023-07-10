@@ -80,6 +80,7 @@ This project utilizes the following libraries and frameworks:
 - Incorporate feedback loops to continuously improve the chatbot's performance and address user queries.
 - Expand the knowledge base and keep it up to date with the latest information.
 
+## Author
+- [@tknishh](https://github.com/tknishh)
 ## Contact
-
 For any inquiries, please email [tanishqkhandelwaltqk011@gmail.com](mailto:tanishqkhandelwaltqk011@gmail.com).

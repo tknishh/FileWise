@@ -12,8 +12,9 @@ from langchain.callbacks import get_openai_callback
 
 load_dotenv()
 from PIL import Image
+
 img = Image.open(r"title_image.png")
-st.set_page_config(page_title="FileWise: Empowering Insights, Effortlessly.", page_icon= img)
+st.set_page_config(page_title="FileWise: Empowering Insights, Effortlessly.", page_icon=img)
 st.header("Ask Your File📄")
 file = st.file_uploader("Upload your file")
 

@@ -4,8 +4,9 @@ import streamlit as st
 from PyPDF2 import PdfReader
 import textract
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+from gensim.models import Word2Vec
+import numpy as np
+import faiss  # Import FAISS for similarity search
 from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAI
 from langchain.callbacks import get_openai_callback
@@ -13,19 +14,10 @@ from langchain.callbacks import get_openai_callback
 load_dotenv()
 from PIL import Image
 
-# Initialize Streamlit page
 img = Image.open(r"title_image.png")
 st.set_page_config(page_title="FileWise: Empowering Insights, Effortlessly.", page_icon=img)
 st.header("Ask Your File📄")
 file = st.file_uploader("Upload your file")
-
-# Initialize session state
-if 'context' not in st.session_state:
-    st.session_state.context = {
-        'knowledge_base': None,
-        'qa_chain': None,
-        'conversation_history': [],
-    }
 
 if file is not None:
     content = file.read()  # Read the file content once
@@ -40,45 +32,46 @@ if file is not None:
     elif file.type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
         text = textract.process(content)
 
-    if st.session_state.context['knowledge_base'] is None:
-        text_splitter = CharacterTextSplitter(
-            separator="\n",
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        chunks = text_splitter.split_text(text)
+    text_splitter = CharacterTextSplitter(
+        separator="\n",
+        chunk_size=1000,
+        chunk_overlap=200,
+        length_function=len
+    )  
 
-        embeddings = OpenAIEmbeddings()
-        knowledge_base = FAISS.from_texts(chunks, embeddings)
-        st.session_state.context['knowledge_base'] = knowledge_base
+    chunks = text_splitter.split_text(text)
+
+    # Replace OpenAI embeddings with Word2Vec embeddings
+    # Train a Word2Vec model on your text data
+    word2vec_model = Word2Vec(chunks, vector_size=100, window=5, min_count=1, sg=0)
+
+    # Convert the Word2Vec model to a dictionary of embeddings
+    embeddings = {word: word2vec_model.wv[word] for word in word2vec_model.wv.index_to_key}
+
+    # Convert the embeddings dictionary to a NumPy array
+    embedding_matrix = np.array(list(embeddings.values()))
+
+    # Create an index for similarity search using FAISS
+    dim = word2vec_model.vector_size
+    index = faiss.IndexFlatL2(dim)
+    index.add(embedding_matrix)
 
     query = st.text_input("Ask your Question about the file")
     if query:
-        docs = st.session_state.context['knowledge_base'].similarity_search(query)
+        # Perform similarity search using FAISS
+        query_vector = word2vec_model.wv[query]  # Get the vector for the query
+        query_vector = query_vector.reshape(1, -1)  # Reshape for FAISS
+        _, similar_doc_indices = index.search(query_vector, k=10)  # Find similar documents
 
-        if st.session_state.context['qa_chain'] is None:
-            llm = OpenAI()
-            chain = load_qa_chain(llm, chain_type="stuff")
-            st.session_state.context['qa_chain'] = chain
+        llm = OpenAI()
+        chain = load_qa_chain(llm, chain_type="stuff")
 
-        response = st.session_state.context['qa_chain'].run(input_documents=docs, question=query)
-        
-        # Store conversation history
-        st.session_state.context['conversation_history'].append({
-            'query': query,
-            'response': response,
-        })
+        # Get the similar documents based on indices
+        similar_documents = [chunks[i] for i in similar_doc_indices[0]]
 
+        # Combine similar documents into one text for question answering
+        combined_text = "\n".join(similar_documents)
+
+        response = chain.run(input_documents=[combined_text], question=query)
+           
         st.success(response)
-
-# Provide options to start a new conversation or clear context
-if st.button("Start a New Conversation"):
-    st.session_state.context['knowledge_base'] = None
-    st.session_state.context['qa_chain'] = None
-    st.session_state.context['conversation_history'] = []
-
-if st.button("Clear Context"):
-    st.session_state.context['knowledge_base'] = None
-    st.session_state.context['qa_chain'] = None
-    st.session_state.context['conversation_history'] = []
